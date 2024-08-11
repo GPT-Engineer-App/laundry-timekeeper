@@ -132,8 +132,31 @@ const Booking = () => {
         </div>
       );
     }
-  })}
-</div>
+  }
+
+  return (
+    <div className="min-h-screen p-8 bg-gray-100">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Laundry Booking</h1>
+        <Button onClick={handleLogout}>Logout</Button>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Book a Laundry Slot</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              disabled={(date) => date < new Date() || date > addDays(new Date(), 7)}
+              className="rounded-md border"
+            />
+          </div>
+          <div className="space-y-4">
+            {timeSlots.map(renderTimeSlot)}
+          </div>
         </CardContent>
       </Card>
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
