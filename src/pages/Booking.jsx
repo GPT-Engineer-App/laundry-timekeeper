@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { addDays, format, parseISO, isToday, isBefore, startOfDay, isAfter, isValid, isSameDay } from 'date-fns';
 
 const timeSlots = ['7-10', '10-13', '13-16', '16-19', '19-22'];
@@ -34,6 +35,11 @@ const Booking = () => {
   };
 
   const handleBooking = (slot) => {
+    if (upcomingBooking && upcomingBooking.timeSlot === slot && isSameDay(parseISO(upcomingBooking.date), selectedDate)) {
+      // If clicking on the current booking, do nothing (cancellation is handled separately)
+      return;
+    }
+
     const newBooking = {
       user: currentUser,
       date: selectedDate.toISOString(),
@@ -55,6 +61,17 @@ const Booking = () => {
     
     // Update user's upcoming booking
     localStorage.setItem('upcomingBooking', JSON.stringify(newBooking));
+  };
+
+  const cancelBooking = () => {
+    // Remove the booking from allBookings
+    let allBookings = JSON.parse(localStorage.getItem('allBookings')) || [];
+    allBookings = allBookings.filter(booking => booking.user !== currentUser);
+    localStorage.setItem('allBookings', JSON.stringify(allBookings));
+
+    // Clear the user's upcoming booking
+    localStorage.removeItem('upcomingBooking');
+    setUpcomingBooking(null);
   };
 
   const isSlotBooked = (slot) => {
@@ -143,17 +160,34 @@ const Booking = () => {
                   const canBook = !isPast && (isAvailable || isUserSlot);
 
                   return (
-                    <Button
-                      key={slot}
-                      onClick={() => canBook && !isUserSlot && handleBooking(slot)}
-                      disabled={!canBook || (isBooked && !isUserSlot)}
-                      variant={isUserSlot ? "default" : "outline"}
-                      className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
-                    >
-                      {slot}
-                      <br />
-                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Unavailable" : "Available")}
-                    </Button>
+                    <AlertDialog key={slot}>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          onClick={() => !isUserSlot && handleBooking(slot)}
+                          disabled={!canBook || (isBooked && !isUserSlot)}
+                          variant={isUserSlot ? "default" : "outline"}
+                          className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
+                        >
+                          {slot}
+                          <br />
+                          {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Unavailable" : "Available")}
+                        </Button>
+                      </AlertDialogTrigger>
+                      {isUserSlot && (
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to cancel your booking for {slot} on {formatDate(selectedDate)}?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>No</AlertDialogCancel>
+                            <AlertDialogAction onClick={cancelBooking}>Yes, Cancel Booking</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      )}
+                    </AlertDialog>
                   );
                 })}
               </div>
