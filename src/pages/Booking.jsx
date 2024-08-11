@@ -102,6 +102,9 @@ const Booking = () => {
 
     setBookings(updatedBookings);
     setIsDialogOpen(false);
+    
+    // Force a re-render of UserBookings
+    setCurrentUser(prevUser => prevUser);
   };
 
   const isSlotBooked = (slot) => {
@@ -142,7 +145,7 @@ const Booking = () => {
   }
 
   const UserBookings = () => {
-    const userBookings = getUserBookings();
+    const userBookings = getUserBookings().sort((a, b) => b.date - a.date); // Sort bookings in descending order
     return (
       <Card className="mt-4">
         <CardHeader>
