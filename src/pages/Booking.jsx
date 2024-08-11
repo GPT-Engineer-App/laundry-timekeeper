@@ -122,6 +122,12 @@ const Booking = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
+      {upcomingBooking && (
+        <div className="max-w-4xl mx-auto mb-8 bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-xl font-semibold mb-2">Your Upcoming Booking:</h3>
+          <p className="text-lg font-medium">{format(upcomingBooking.date, 'MMMM d, yyyy')} - {upcomingBooking.timeSlot}</p>
+        </div>
+      )}
       <Card className="max-w-4xl mx-auto">
         <CardHeader>
           <CardTitle className="flex justify-between items-center">
@@ -131,15 +137,6 @@ const Booking = () => {
         </CardHeader>
         <CardContent>
           <h2 className="text-xl font-semibold mb-4">Welcome, {currentUser}!</h2>
-          {upcomingBooking && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-2">Your Upcoming Booking:</h3>
-              <Card className="p-4">
-                <p className="font-medium">{format(upcomingBooking.date, 'MMMM d, yyyy')}</p>
-                <p>{upcomingBooking.timeSlot}</p>
-              </Card>
-            </div>
-          )}
           <div className="flex flex-col md:flex-row gap-8">
             <div className="flex-1">
               <Calendar
