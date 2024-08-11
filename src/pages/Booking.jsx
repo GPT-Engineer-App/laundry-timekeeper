@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
-import { addDays, format, parseISO, isToday, isBefore, startOfDay, isAfter } from 'date-fns';
+import { addDays, format, parseISO, isToday, isBefore, startOfDay, isAfter, isValid } from 'date-fns';
 
 const timeSlots = ['7-10', '10-13', '13-16', '16-19', '19-22'];
 
@@ -24,8 +24,10 @@ const Booking = () => {
       // Convert stored date strings back to Date objects
       const parsedBookings = Object.entries(storedBookings).reduce((acc, [key, value]) => {
         const [dateStr, timeSlot] = key.split('-');
-        const date = parseISO(dateStr);
-        acc[`${format(date, 'yyyy-MM-dd')}-${timeSlot}`] = value;
+        if (dateStr && isValid(parseISO(dateStr))) {
+          const date = parseISO(dateStr);
+          acc[`${format(date, 'yyyy-MM-dd')}-${timeSlot}`] = value;
+        }
         return acc;
       }, {});
       setBookings(parsedBookings);
@@ -69,6 +71,10 @@ const Booking = () => {
   };
 
   const isSlotBooked = (slot) => {
+    if (!isValid(selectedDate)) {
+      console.error('Invalid selectedDate:', selectedDate);
+      return false;
+    }
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
     const slotKey = `${dateKey}-${slot}`;
     return bookings[slotKey] !== undefined;
