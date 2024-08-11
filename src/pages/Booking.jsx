@@ -161,31 +161,42 @@ const Booking = () => {
 
                   return (
                     <AlertDialog key={slot}>
-                      <AlertDialogTrigger asChild>
+                      {isUserSlot ? (
+                        <>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="default"
+                              className="h-20 bg-green-500 hover:bg-green-600"
+                            >
+                              {slot}
+                              <br />
+                              Your Booking
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to cancel your booking for {slot} on {formatDate(selectedDate)}?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>No</AlertDialogCancel>
+                              <AlertDialogAction onClick={cancelBooking}>Yes, Cancel Booking</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </>
+                      ) : (
                         <Button
-                          onClick={() => !isUserSlot && handleBooking(slot)}
-                          disabled={!canBook || (isBooked && !isUserSlot)}
-                          variant={isUserSlot ? "default" : "outline"}
-                          className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
+                          onClick={() => handleBooking(slot)}
+                          disabled={!canBook || isBooked}
+                          variant="outline"
+                          className={`h-20 ${isPast ? 'opacity-50' : ''}`}
                         >
                           {slot}
                           <br />
-                          {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Unavailable" : "Available")}
+                          {isPast ? "Past" : (isBooked ? "Unavailable" : "Available")}
                         </Button>
-                      </AlertDialogTrigger>
-                      {isUserSlot && (
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to cancel your booking for {slot} on {formatDate(selectedDate)}?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>No</AlertDialogCancel>
-                            <AlertDialogAction onClick={cancelBooking}>Yes, Cancel Booking</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
                       )}
                     </AlertDialog>
                   );
