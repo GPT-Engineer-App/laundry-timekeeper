@@ -42,18 +42,6 @@ const Booking = () => {
     setUpcomingBookings(userBookings.slice(0, 3)); // Show only the next 3 upcoming bookings
   };
 
-  const isSlotBooked = (slot) => {
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    const slotKey = `${dateKey}-${slot}`;
-    return bookings[slotKey] !== undefined;
-  };
-
-  const isUserBooking = (slot) => {
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    const slotKey = `${dateKey}-${slot}`;
-    return bookings[slotKey] === currentUser;
-  };
-
   const handleBooking = (slot) => {
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
     const slotKey = `${dateKey}-${slot}`;
