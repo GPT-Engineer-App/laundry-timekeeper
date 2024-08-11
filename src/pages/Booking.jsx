@@ -29,21 +29,35 @@ const Booking = () => {
   const handleBooking = (slot) => {
     const newBooking = {
       user: currentUser,
-      date: selectedDate,
+      date: selectedDate.toISOString(),
       timeSlot: slot
     };
     setUpcomingBooking(newBooking);
+    
+    // Update all bookings
+    const allBookings = JSON.parse(localStorage.getItem('allBookings')) || [];
+    allBookings.push(newBooking);
+    localStorage.setItem('allBookings', JSON.stringify(allBookings));
+    
+    // Update user's upcoming booking
     localStorage.setItem('upcomingBooking', JSON.stringify(newBooking));
   };
 
   const isSlotBooked = (slot) => {
-    if (!upcomingBooking) return false;
-    return format(upcomingBooking.date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd') &&
-           upcomingBooking.timeSlot === slot;
+    const bookings = JSON.parse(localStorage.getItem('allBookings')) || [];
+    return bookings.some(booking => 
+      format(parseISO(booking.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd') &&
+      booking.timeSlot === slot
+    );
   };
 
   const isUserBooking = (slot) => {
-    return isSlotBooked(slot) && upcomingBooking.user === currentUser;
+    const bookings = JSON.parse(localStorage.getItem('allBookings')) || [];
+    return bookings.some(booking => 
+      format(parseISO(booking.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd') &&
+      booking.timeSlot === slot &&
+      booking.user === currentUser
+    );
   };
 
   const isSlotAvailable = (slot) => {
@@ -112,14 +126,14 @@ const Booking = () => {
                   return (
                     <Button
                       key={slot}
-                      onClick={() => canBook && handleBooking(slot)}
-                      disabled={!canBook}
+                      onClick={() => canBook && !isUserSlot && handleBooking(slot)}
+                      disabled={!canBook || (isBooked && !isUserSlot)}
                       variant={isUserSlot ? "default" : "outline"}
                       className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
                     >
                       {slot}
                       <br />
-                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Booked" : "Available")}
+                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Unavailable" : "Available")}
                     </Button>
                   );
                 })}
