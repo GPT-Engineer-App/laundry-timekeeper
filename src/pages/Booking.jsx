@@ -80,6 +80,10 @@ const Booking = () => {
     return bookings[slotKey] === currentUser;
   };
 
+  const isSlotAvailable = (slot) => {
+    return !isSlotBooked(slot) || isUserBooking(slot);
+  };
+
   const isSlotPast = (slot) => {
     const [startHour] = slot.split('-');
     const slotDate = new Date(selectedDate);
@@ -155,19 +159,20 @@ const Booking = () => {
                   const isPast = isSlotPast(slot);
                   const isBooked = isSlotBooked(slot);
                   const isUserSlot = isUserBooking(slot);
-                  const canBook = !isPast && !isBooked && (!hasUserBooking() || isUserSlot);
+                  const isAvailable = isSlotAvailable(slot);
+                  const canBook = !isPast && isAvailable && (!hasUserBooking() || isUserSlot);
 
                   return (
                     <Button
                       key={slot}
                       onClick={() => canBook && handleBooking(slot)}
                       disabled={!canBook}
-                      variant={isBooked ? (isUserSlot ? "default" : "secondary") : "outline"}
+                      variant={isUserSlot ? "default" : (isAvailable ? "outline" : "secondary")}
                       className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
                     >
                       {slot}
                       <br />
-                      {isPast ? "Past" : isBooked ? (isUserSlot ? "Your Booking" : "Booked") : "Available"}
+                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isAvailable ? "Available" : "Unavailable")}
                     </Button>
                   );
                 })}
