@@ -88,7 +88,15 @@ const Booking = () => {
   };
 
   const hasUserBooking = () => {
-    return Object.values(bookings).includes(currentUser);
+    const now = new Date();
+    return Object.entries(bookings).some(([key, value]) => {
+      if (value === currentUser) {
+        const [dateStr] = key.split('-');
+        const bookingDate = parseISO(dateStr);
+        return isAfter(bookingDate, now) || isToday(bookingDate);
+      }
+      return false;
+    });
   };
 
   const formatDate = (date) => {
@@ -147,13 +155,13 @@ const Booking = () => {
                   const isPast = isSlotPast(slot);
                   const isBooked = isSlotBooked(slot);
                   const isUserSlot = isUserBooking(slot);
-                  const canBook = !isPast && !isBooked && !hasUserBooking();
+                  const canBook = !isPast && !isBooked && (!hasUserBooking() || isUserSlot);
 
                   return (
                     <Button
                       key={slot}
                       onClick={() => canBook && handleBooking(slot)}
-                      disabled={!canBook && !isUserSlot}
+                      disabled={!canBook}
                       variant={isBooked ? (isUserSlot ? "default" : "secondary") : "outline"}
                       className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
                     >
