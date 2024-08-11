@@ -25,8 +25,9 @@ const Booking = () => {
   const navigate = useNavigate();
 
   const getUserBookings = () => {
+    const now = new Date();
     return Object.entries(bookings)
-      .filter(([key, value]) => value === currentUser)
+      .filter(([key, value]) => value === currentUser && parseISO(key.split('-')[0]) >= now)
       .map(([key]) => {
         const [date, time] = key.split('-');
         return { date: parseISO(date), time };
@@ -34,17 +35,26 @@ const Booking = () => {
       .sort((a, b) => a.date - b.date);
   };
 
-  const canBookSlot = (slot) => {
+  const canBookSlot = (slot, date) => {
     const userBookings = getUserBookings();
-    const isQuickRinse = slot.length === 5; // e.g., "7-8"
-    const hasFullBooking = userBookings.some(booking => booking.length === 5); // e.g., "7-10"
-    const hasQuickRinse = userBookings.some(booking => booking.length === 5);
+    const selectedDateTime = new Date(date);
+    selectedDateTime.setHours(parseInt(slot.split('-')[0]), 0, 0, 0);
 
-    if (isQuickRinse) {
-      return !hasQuickRinse;
-    } else {
-      return !hasFullBooking && !hasQuickRinse;
+    // Check if the selected date and time is in the past
+    if (selectedDateTime < new Date()) {
+      return false;
     }
+
+    // Check if the user already has a booking for the future
+    if (userBookings.length > 0) {
+      const earliestBooking = userBookings[0];
+      if (isSameDay(date, earliestBooking.date) && slot === earliestBooking.time) {
+        return true; // Allow editing the current booking
+      }
+      return false; // User already has a future booking
+    }
+
+    return true; // User has no future bookings, so they can book
   };
 
   useEffect(() => {
@@ -73,11 +83,12 @@ const Booking = () => {
   const bookSlot = (slot) => {
     const updatedBookings = { ...bookings };
     const bookingKey = `${format(selectedDate, 'yyyy-MM-dd')}-${slot}`;
-    
+  
     if (dialogAction === 'book') {
-      // Remove existing bookings for the current user on the selected date
+      // Remove all future bookings for the current user
       Object.keys(updatedBookings).forEach(key => {
-        if (updatedBookings[key] === currentUser && key.startsWith(`${format(selectedDate, 'yyyy-MM-dd')}-`)) {
+        const [bookingDate] = key.split('-');
+        if (updatedBookings[key] === currentUser && parseISO(bookingDate) >= new Date()) {
           delete updatedBookings[key];
         }
       });
@@ -88,7 +99,7 @@ const Booking = () => {
       // Remove the booking
       delete updatedBookings[bookingKey];
     }
-  
+
     setBookings(updatedBookings);
     setIsDialogOpen(false);
   };
@@ -114,43 +125,20 @@ const Booking = () => {
   };
 
   const renderTimeSlot = (slot) => {
-    const isFullSlot = slot.full.length === 5;
-    const quickRinseBooked = isFullSlot && slot.quick.some(q => isSlotBooked(q));
-    
-    if (quickRinseBooked) {
-      return (
-        <div key={slot.full} className="space-y-2">
-          {slot.quick.map(quickSlot => (
-            <Button
-              key={quickSlot}
-              onClick={() => handleBooking(quickSlot)}
-              disabled={!canBookSlot(quickSlot) && !isUserBooking(quickSlot)}
-              variant={isSlotBooked(quickSlot) ? (isUserBooking(quickSlot) ? "default" : "secondary") : "outline"}
-              className={`w-full h-12 ${isUserBooking(quickSlot) ? 'bg-green-500 hover:bg-green-600' : ''}`}
-            >
-              {quickSlot}
-              <br />
-              {getSlotStatus(quickSlot)}
-            </Button>
-          ))}
-        </div>
-      );
-    } else {
-      return (
-        <div key={slot.full} className="space-y-2">
-          <Button
-            onClick={() => handleBooking(slot.full)}
-            disabled={!canBookSlot(slot.full) && !isUserBooking(slot.full)}
-            variant={isSlotBooked(slot.full) ? (isUserBooking(slot.full) ? "default" : "secondary") : "outline"}
-            className={`w-full h-20 ${isUserBooking(slot.full) ? 'bg-green-500 hover:bg-green-600' : ''}`}
-          >
-            {slot.full}
-            <br />
-            {getSlotStatus(slot.full)}
-          </Button>
-        </div>
-      );
-    }
+    return (
+      <div key={slot.full} className="space-y-2">
+        <Button
+          onClick={() => handleBooking(slot.full)}
+          disabled={!canBookSlot(slot.full, selectedDate) && !isUserBooking(slot.full)}
+          variant={isSlotBooked(slot.full) ? (isUserBooking(slot.full) ? "default" : "secondary") : "outline"}
+          className={`w-full h-20 ${isUserBooking(slot.full) ? 'bg-green-500 hover:bg-green-600' : ''}`}
+        >
+          {slot.full}
+          <br />
+          {getSlotStatus(slot.full)}
+        </Button>
+      </div>
+    );
   }
 
   const UserBookings = () => {
