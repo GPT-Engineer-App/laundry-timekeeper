@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
-import { addDays, format, parseISO, isToday, isBefore, startOfDay } from 'date-fns';
+import { addDays, format, parseISO, isToday, isBefore, startOfDay, isAfter } from 'date-fns';
 
 const timeSlots = ['7-10', '10-13', '13-16', '16-19', '19-22'];
 
@@ -11,6 +11,7 @@ const Booking = () => {
   const [bookings, setBookings] = useState({});
   const [currentUser, setCurrentUser] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [upcomingBookings, setUpcomingBookings] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,8 +29,25 @@ const Booking = () => {
         return acc;
       }, {});
       setBookings(parsedBookings);
+      updateUpcomingBookings(parsedBookings, user);
     }
   }, [navigate]);
+
+  const updateUpcomingBookings = (bookings, user) => {
+    const now = new Date();
+    const userBookings = Object.entries(bookings)
+      .filter(([key, value]) => value === user)
+      .map(([key]) => {
+        const [dateStr, timeSlot] = key.split('-');
+        const [startHour] = timeSlot.split('-');
+        const bookingDate = parseISO(dateStr);
+        bookingDate.setHours(parseInt(startHour, 10), 0, 0, 0);
+        return { date: bookingDate, timeSlot };
+      })
+      .filter(booking => isAfter(booking.date, now))
+      .sort((a, b) => a.date - b.date);
+    setUpcomingBookings(userBookings.slice(0, 3)); // Show only the next 3 upcoming bookings
+  };
 
   const handleBooking = (slot) => {
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
@@ -97,6 +115,19 @@ const Booking = () => {
         </CardHeader>
         <CardContent>
           <h2 className="text-xl font-semibold mb-4">Welcome, {currentUser}!</h2>
+          {upcomingBookings.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-2">Your Upcoming Bookings:</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {upcomingBookings.map((booking, index) => (
+                  <Card key={index} className="p-4">
+                    <p className="font-medium">{format(booking.date, 'MMMM d, yyyy')}</p>
+                    <p>{booking.timeSlot}</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex flex-col md:flex-row gap-8">
             <div className="flex-1">
               <Calendar
