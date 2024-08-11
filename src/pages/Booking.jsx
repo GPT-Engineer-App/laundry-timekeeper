@@ -21,17 +21,8 @@ const Booking = () => {
     } else {
       setCurrentUser(user);
       const storedBookings = JSON.parse(localStorage.getItem('bookings')) || {};
-      // Convert stored date strings back to Date objects
-      const parsedBookings = Object.entries(storedBookings).reduce((acc, [key, value]) => {
-        const [dateStr, timeSlot] = key.split('-');
-        if (dateStr && isValid(parseISO(dateStr))) {
-          const date = parseISO(dateStr);
-          acc[`${format(date, 'yyyy-MM-dd')}-${timeSlot}`] = value;
-        }
-        return acc;
-      }, {});
-      setBookings(parsedBookings);
-      updateUpcomingBookings(parsedBookings, user);
+      setBookings(storedBookings);
+      updateUpcomingBookings(storedBookings, user);
     }
   }, [navigate]);
 
@@ -51,23 +42,39 @@ const Booking = () => {
     setUpcomingBookings(userBookings.slice(0, 3)); // Show only the next 3 upcoming bookings
   };
 
+  const isSlotBooked = (slot) => {
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    const slotKey = `${dateKey}-${slot}`;
+    return bookings[slotKey] !== undefined;
+  };
+
+  const isUserBooking = (slot) => {
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    const slotKey = `${dateKey}-${slot}`;
+    return bookings[slotKey] === currentUser;
+  };
+
   const handleBooking = (slot) => {
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
     const slotKey = `${dateKey}-${slot}`;
     const updatedBookings = { ...bookings };
     
-    // Remove any existing booking for the current user
-    Object.keys(updatedBookings).forEach(key => {
-      if (updatedBookings[key] === currentUser) {
-        delete updatedBookings[key];
-      }
-    });
+    // Check if the user already has a booking for this day
+    const existingBookingKey = Object.keys(updatedBookings).find(key => 
+      key.startsWith(dateKey) && updatedBookings[key] === currentUser
+    );
+
+    if (existingBookingKey) {
+      // Remove existing booking for this day
+      delete updatedBookings[existingBookingKey];
+    }
 
     // Add new booking
     updatedBookings[slotKey] = currentUser;
     
     setBookings(updatedBookings);
     localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+    updateUpcomingBookings(updatedBookings, currentUser);
   };
 
   const isSlotBooked = (slot) => {
