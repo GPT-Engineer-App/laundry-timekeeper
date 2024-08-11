@@ -16,7 +16,10 @@ const timeSlots = [
 ];
 
 const Booking = () => {
-  const [bookings, setBookings] = useState({});
+  const [bookings, setBookings] = useState(() => {
+    const savedBookings = localStorage.getItem('bookings');
+    return savedBookings ? JSON.parse(savedBookings) : {};
+  });
   const [currentUser, setCurrentUser] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -38,6 +41,7 @@ const Booking = () => {
 
   useEffect(() => {
     setUserBookings(getUserBookings());
+    localStorage.setItem('bookings', JSON.stringify(bookings));
   }, [bookings, currentUser]);
 
   const canBookSlot = (slot, date) => {
@@ -86,30 +90,30 @@ const Booking = () => {
   };
 
   const bookSlot = (slot) => {
-    const updatedBookings = { ...bookings };
-    const bookingKey = `${format(selectedDate, 'yyyy-MM-dd')}-${slot}`;
-  
-    if (dialogAction === 'book') {
-      // Remove all future bookings for the current user
-      Object.keys(updatedBookings).forEach(key => {
-        const [bookingDate] = key.split('-');
-        if (updatedBookings[key] === currentUser && parseISO(bookingDate) >= new Date()) {
-          delete updatedBookings[key];
-        }
-      });
-
-      // Add new booking
-      updatedBookings[bookingKey] = currentUser;
-    } else if (dialogAction === 'unbook') {
-      // Remove the booking
-      delete updatedBookings[bookingKey];
-    }
-
-    setBookings(updatedBookings);
-    setIsDialogOpen(false);
+    setBookings(prevBookings => {
+      const updatedBookings = { ...prevBookings };
+      const bookingKey = `${format(selectedDate, 'yyyy-MM-dd')}-${slot}`;
     
-    // Update user bookings
-    setUserBookings(getUserBookings());
+      if (dialogAction === 'book') {
+        // Remove all future bookings for the current user
+        Object.keys(updatedBookings).forEach(key => {
+          const [bookingDate] = key.split('-');
+          if (updatedBookings[key] === currentUser && parseISO(bookingDate) >= new Date()) {
+            delete updatedBookings[key];
+          }
+        });
+
+        // Add new booking
+        updatedBookings[bookingKey] = currentUser;
+      } else if (dialogAction === 'unbook') {
+        // Remove the booking
+        delete updatedBookings[bookingKey];
+      }
+
+      return updatedBookings;
+    });
+
+    setIsDialogOpen(false);
   };
 
   const isSlotBooked = (slot) => {
