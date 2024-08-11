@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
-import { addDays, format, parseISO, isToday, isBefore, startOfDay, isAfter, isValid } from 'date-fns';
+import { addDays, format, parseISO, isToday, isBefore, startOfDay, isAfter, isValid, isSameDay } from 'date-fns';
 
 const timeSlots = ['7-10', '10-13', '13-16', '16-19', '19-22'];
 
@@ -19,12 +19,19 @@ const Booking = () => {
       navigate('/');
     } else {
       setCurrentUser(user);
-      const storedBooking = JSON.parse(localStorage.getItem('upcomingBooking'));
-      if (storedBooking && storedBooking.user === user) {
-        setUpcomingBooking(storedBooking);
+      const allBookings = JSON.parse(localStorage.getItem('allBookings')) || [];
+      const userBooking = allBookings.find(booking => booking.user === user);
+      if (userBooking) {
+        setUpcomingBooking(userBooking);
       }
     }
   }, [navigate]);
+
+  const handleDateSelect = (date) => {
+    if (date && !isSameDay(date, selectedDate)) {
+      setSelectedDate(date);
+    }
+  };
 
   const handleBooking = (slot) => {
     const newBooking = {
@@ -118,7 +125,7 @@ const Booking = () => {
               <Calendar
                 mode="single"
                 selected={selectedDate}
-                onSelect={setSelectedDate}
+                onSelect={handleDateSelect}
                 className="rounded-md border"
                 disabled={(date) => isBefore(startOfDay(date), startOfDay(new Date())) || date > addDays(new Date(), 21)}
               />
