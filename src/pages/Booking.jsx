@@ -124,16 +124,16 @@ const Booking = () => {
             disabled={!canBookSlot(slot.full) || (isSlotBooked(slot.full) && !isUserBooking(slot.full))}
             variant={isSlotBooked(slot.full) ? (isUserBooking(slot.full) ? "default" : "secondary") : "outline"}
             className={`w-full h-20 ${isUserBooking(slot.full) ? 'bg-green-500 hover:bg-green-600' : ''}`}
-                    >
-                      {slot.full}
-                      <br />
-                      {getSlotStatus(slot.full)}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          >
+            {slot.full}
+            <br />
+            {getSlotStatus(slot.full)}
+          </Button>
+        </div>
+      );
+    }
+  })}
+</div>
         </CardContent>
       </Card>
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
