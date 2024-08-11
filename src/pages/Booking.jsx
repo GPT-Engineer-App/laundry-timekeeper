@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
-import { addDays, format, parseISO } from 'date-fns';
+import { addDays, format, parseISO, isToday, isBefore, startOfDay } from 'date-fns';
 
 const timeSlots = ['7-10', '10-13', '13-16', '16-19', '19-22'];
 
@@ -36,9 +36,9 @@ const Booking = () => {
     const slotKey = `${dateKey}-${slot}`;
     const updatedBookings = { ...bookings };
     
-    // Remove existing booking for the current user on the selected date
+    // Remove any existing booking for the current user
     Object.keys(updatedBookings).forEach(key => {
-      if (key.startsWith(dateKey) && updatedBookings[key] === currentUser) {
+      if (updatedBookings[key] === currentUser) {
         delete updatedBookings[key];
       }
     });
@@ -60,6 +60,17 @@ const Booking = () => {
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
     const slotKey = `${dateKey}-${slot}`;
     return bookings[slotKey] === currentUser;
+  };
+
+  const isSlotPast = (slot) => {
+    const [startHour] = slot.split('-');
+    const slotDate = new Date(selectedDate);
+    slotDate.setHours(parseInt(startHour, 10), 0, 0, 0);
+    return isBefore(slotDate, new Date());
+  };
+
+  const hasUserBooking = () => {
+    return Object.values(bookings).includes(currentUser);
   };
 
   const formatDate = (date) => {
@@ -93,7 +104,7 @@ const Booking = () => {
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 className="rounded-md border"
-                disabled={(date) => date < new Date() || date > addDays(new Date(), 21)}
+                disabled={(date) => isBefore(startOfDay(date), startOfDay(new Date())) || date > addDays(new Date(), 21)}
               />
             </div>
             <div className="flex-1">
@@ -101,19 +112,26 @@ const Booking = () => {
                 Bookings for {formatDate(selectedDate)}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {timeSlots.map((slot) => (
-                  <Button
-                    key={slot}
-                    onClick={() => handleBooking(slot)}
-                    disabled={isSlotBooked(slot) && !isUserBooking(slot)}
-                    variant={isSlotBooked(slot) ? (isUserBooking(slot) ? "default" : "secondary") : "outline"}
-                    className={`h-20 ${isUserBooking(slot) ? 'bg-green-500 hover:bg-green-600' : ''}`}
-                  >
-                    {slot}
-                    <br />
-                    {isSlotBooked(slot) ? (isUserBooking(slot) ? "Your Booking" : "Booked") : "Available"}
-                  </Button>
-                ))}
+                {timeSlots.map((slot) => {
+                  const isPast = isSlotPast(slot);
+                  const isBooked = isSlotBooked(slot);
+                  const isUserSlot = isUserBooking(slot);
+                  const canBook = !isPast && !isBooked && !hasUserBooking();
+
+                  return (
+                    <Button
+                      key={slot}
+                      onClick={() => canBook && handleBooking(slot)}
+                      disabled={!canBook && !isUserSlot}
+                      variant={isBooked ? (isUserSlot ? "default" : "secondary") : "outline"}
+                      className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
+                    >
+                      {slot}
+                      <br />
+                      {isPast ? "Past" : isBooked ? (isUserSlot ? "Your Booking" : "Booked") : "Available"}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
           </div>
