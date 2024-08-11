@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { addDays, format } from 'date-fns';
 
 const timeSlots = [
@@ -17,6 +18,8 @@ const Booking = () => {
   const [bookings, setBookings] = useState({});
   const [currentUser, setCurrentUser] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   const getUserBookings = (date) => {
@@ -33,7 +36,7 @@ const Booking = () => {
     const hasQuickRinse = userBookings.some(booking => booking.length === 3);
 
     if (isQuickRinse) {
-      return !hasQuickRinse;
+      return !hasQuickRinse && !hasFullBooking;
     } else {
       return !hasFullBooking;
     }
@@ -53,6 +56,15 @@ const Booking = () => {
   const handleBooking = (slot) => {
     if (!canBookSlot(slot)) return;
 
+    if (slot.length === 5) { // Full-length slot
+      setSelectedSlot(slot);
+      setIsDialogOpen(true);
+    } else { // Quick rinse slot
+      bookSlot(slot);
+    }
+  };
+
+  const bookSlot = (slot) => {
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
     const slotKey = `${dateKey}-${slot}`;
     const updatedBookings = { ...bookings };
@@ -72,6 +84,7 @@ const Booking = () => {
   
     setBookings(updatedBookings);
     localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+    setIsDialogOpen(false);
   };
 
   const isSlotBooked = (slot) => {
@@ -136,23 +149,6 @@ const Booking = () => {
                       <br />
                       {getSlotStatus(slotGroup.full)}
                     </Button>
-                    <div className="flex gap-2">
-                      {slotGroup.quick.map((quickSlot) => (
-                        <Button
-                          key={quickSlot}
-                          onClick={() => handleBooking(quickSlot)}
-                          disabled={!canBookSlot(quickSlot) || (isSlotBooked(quickSlot) && !isUserBooking(quickSlot))}
-                          variant={isSlotBooked(quickSlot) ? (isUserBooking(quickSlot) ? "default" : "secondary") : "outline"}
-                          className={`flex-1 h-16 ${isUserBooking(quickSlot) ? 'bg-blue-500 hover:bg-blue-600' : ''}`}
-                        >
-                          {quickSlot}
-                          <br />
-                          Quick Rinse
-                          <br />
-                          {getSlotStatus(quickSlot)}
-                        </Button>
-                      ))}
-                    </div>
                   </div>
                 ))}
               </div>
@@ -160,6 +156,29 @@ const Booking = () => {
           </div>
         </CardContent>
       </Card>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Choose Booking Type</DialogTitle>
+            <DialogDescription>
+              Do you want to book the entire time slot or just a quick rinse?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => bookSlot(selectedSlot)}>Full Slot ({selectedSlot})</Button>
+            {selectedSlot && (
+              <>
+                <Button onClick={() => bookSlot(selectedSlot.split('-')[0])}>
+                  Quick Rinse ({selectedSlot.split('-')[0]})
+                </Button>
+                <Button onClick={() => bookSlot(selectedSlot.split('-')[1])}>
+                  Quick Rinse ({selectedSlot.split('-')[1]})
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
