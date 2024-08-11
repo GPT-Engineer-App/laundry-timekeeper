@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { addDays, format } from 'date-fns';
+import { addDays, format, isSameDay } from 'date-fns';
 
 const timeSlots = [
   { full: '7-10', quick: ['7-8', '8-9', '9-10'] },
@@ -20,12 +20,13 @@ const Booking = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogAction, setDialogAction] = useState('book'); // 'book' or 'unbook'
   const navigate = useNavigate();
 
   const getUserBookings = () => {
     return Object.entries(bookings)
-      .filter(([, value]) => value === currentUser)
-      .map(([key]) => key.split('-').slice(1).join('-'));
+      .filter(([key, value]) => value === currentUser && key.startsWith(`${format(selectedDate, 'yyyy-MM-dd')}-`))
+      .map(([key]) => key.split('-').slice(2).join('-'));
   };
 
   const canBookSlot = (slot) => {
@@ -47,39 +48,50 @@ const Booking = () => {
       navigate('/');
     } else {
       setCurrentUser(user);
-      setBookings({}); // Reset all bookings
     }
   }, [navigate]);
 
   const handleBooking = (slot) => {
-    if (!canBookSlot(slot)) return;
+    if (isUserBooking(`${format(selectedDate, 'yyyy-MM-dd')}-${slot}`)) {
+      setDialogAction('unbook');
+    } else if (canBookSlot(slot)) {
+      setDialogAction('book');
+    } else {
+      return;
+    }
     setSelectedSlot(slot);
     setIsDialogOpen(true);
   };
 
   const bookSlot = (slot) => {
     const updatedBookings = { ...bookings };
+    const bookingKey = `${format(selectedDate, 'yyyy-MM-dd')}-${slot}`;
     
-    // Remove existing bookings for the current user
-    Object.keys(updatedBookings).forEach(key => {
-      if (updatedBookings[key] === currentUser) {
-        delete updatedBookings[key];
-      }
-    });
+    if (dialogAction === 'book') {
+      // Remove existing bookings for the current user on the selected date
+      Object.keys(updatedBookings).forEach(key => {
+        if (updatedBookings[key] === currentUser && key.startsWith(`${format(selectedDate, 'yyyy-MM-dd')}-`)) {
+          delete updatedBookings[key];
+        }
+      });
 
-    // Add new booking
-    updatedBookings[`booking-${slot}`] = currentUser;
+      // Add new booking
+      updatedBookings[bookingKey] = currentUser;
+    } else if (dialogAction === 'unbook') {
+      // Remove the booking
+      delete updatedBookings[bookingKey];
+    }
   
     setBookings(updatedBookings);
     setIsDialogOpen(false);
   };
 
   const isSlotBooked = (slot) => {
-    return bookings[`booking-${slot}`] !== undefined;
+    return bookings[`${format(selectedDate, 'yyyy-MM-dd')}-${slot}`] !== undefined;
   };
 
   const isUserBooking = (slot) => {
-    return bookings[`booking-${slot}`] === currentUser;
+    return bookings[`${format(selectedDate, 'yyyy-MM-dd')}-${slot}`] === currentUser;
   };
 
   const getSlotStatus = (slot) => {
@@ -95,7 +107,7 @@ const Booking = () => {
   };
 
   const renderTimeSlot = (slot) => {
-    const isFullSlot = slot.length === 5;
+    const isFullSlot = slot.full.length === 5;
     const quickRinseBooked = isFullSlot && slot.quick.some(q => isSlotBooked(q));
     
     if (quickRinseBooked) {
@@ -105,7 +117,7 @@ const Booking = () => {
             <Button
               key={quickSlot}
               onClick={() => handleBooking(quickSlot)}
-              disabled={!canBookSlot(quickSlot) || (isSlotBooked(quickSlot) && !isUserBooking(quickSlot))}
+              disabled={!canBookSlot(quickSlot) && !isUserBooking(quickSlot)}
               variant={isSlotBooked(quickSlot) ? (isUserBooking(quickSlot) ? "default" : "secondary") : "outline"}
               className={`w-full h-12 ${isUserBooking(quickSlot) ? 'bg-green-500 hover:bg-green-600' : ''}`}
             >
@@ -121,7 +133,7 @@ const Booking = () => {
         <div key={slot.full} className="space-y-2">
           <Button
             onClick={() => handleBooking(slot.full)}
-            disabled={!canBookSlot(slot.full) || (isSlotBooked(slot.full) && !isUserBooking(slot.full))}
+            disabled={!canBookSlot(slot.full) && !isUserBooking(slot.full)}
             variant={isSlotBooked(slot.full) ? (isUserBooking(slot.full) ? "default" : "secondary") : "outline"}
             className={`w-full h-20 ${isUserBooking(slot.full) ? 'bg-green-500 hover:bg-green-600' : ''}`}
           >
@@ -150,7 +162,7 @@ const Booking = () => {
               mode="single"
               selected={selectedDate}
               onSelect={setSelectedDate}
-              disabled={(date) => date < new Date() || date > addDays(new Date(), 7)}
+              disabled={(date) => date < new Date() || date > addDays(new Date(), 21)}
               className="rounded-md border"
             />
           </div>
@@ -162,13 +174,17 @@ const Booking = () => {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Booking</DialogTitle>
+            <DialogTitle>{dialogAction === 'book' ? 'Confirm Booking' : 'Confirm Unbooking'}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to book this time slot?
+              {dialogAction === 'book' 
+                ? `Are you sure you want to book this time slot: ${selectedSlot} on ${format(selectedDate, 'MMMM d, yyyy')}?`
+                : `Are you sure you want to unbook this time slot: ${selectedSlot} on ${format(selectedDate, 'MMMM d, yyyy')}?`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => bookSlot(selectedSlot)}>Confirm Booking</Button>
+            <Button onClick={() => bookSlot(selectedSlot)}>
+              {dialogAction === 'book' ? 'Confirm Booking' : 'Confirm Unbooking'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
