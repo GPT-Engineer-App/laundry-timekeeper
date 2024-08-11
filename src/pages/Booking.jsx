@@ -47,15 +47,14 @@ const Booking = () => {
     const slotKey = `${dateKey}-${slot}`;
     const updatedBookings = { ...bookings };
     
-    // Check if the user already has a booking for this day
-    const existingBookingKey = Object.keys(updatedBookings).find(key => 
-      key.startsWith(dateKey) && updatedBookings[key] === currentUser
-    );
-
-    if (existingBookingKey) {
-      // Remove existing booking for this day
-      delete updatedBookings[existingBookingKey];
-    }
+    // Remove any existing upcoming booking for this user
+    Object.keys(updatedBookings).forEach(key => {
+      const [bookingDateStr] = key.split('-');
+      const bookingDate = parseISO(bookingDateStr);
+      if (updatedBookings[key] === currentUser && isAfter(bookingDate, new Date())) {
+        delete updatedBookings[key];
+      }
+    });
 
     // Add new booking
     updatedBookings[slotKey] = currentUser;
@@ -98,7 +97,7 @@ const Booking = () => {
       if (value === currentUser) {
         const [dateStr] = key.split('-');
         const bookingDate = parseISO(dateStr);
-        return isAfter(bookingDate, now) || isToday(bookingDate);
+        return isAfter(bookingDate, now);
       }
       return false;
     });
@@ -161,19 +160,19 @@ const Booking = () => {
                   const isBooked = isSlotBooked(slot);
                   const isUserSlot = isUserBooking(slot);
                   const isAvailable = isSlotAvailable(slot);
-                  const canBook = !isPast && isAvailable && !hasUserBooking();
+                  const canBook = !isPast && isAvailable && (!hasUserBooking() || isUserSlot);
 
                   return (
                     <Button
                       key={slot}
                       onClick={() => canBook && handleBooking(slot)}
                       disabled={!canBook}
-                      variant={isUserSlot ? "default" : (isAvailable ? "outline" : "secondary")}
+                      variant={isUserSlot ? "default" : (isAvailable && !hasUserBooking() ? "outline" : "secondary")}
                       className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
                     >
                       {slot}
                       <br />
-                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Booked" : (isAvailable ? "Available" : "Unavailable"))}
+                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Booked" : (isAvailable && !hasUserBooking() ? "Available" : "Unavailable"))}
                     </Button>
                   );
                 })}
