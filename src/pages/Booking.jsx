@@ -5,13 +5,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { addDays, format } from 'date-fns';
 
-const timeSlots = ['7-10', '10-13', '13-16', '16-19', '19-22'];
+const timeSlots = [
+  { full: '7-10', quick: ['7-8', '9-10'] },
+  { full: '10-13', quick: ['10-11', '12-13'] },
+  { full: '13-16', quick: ['13-14', '15-16'] },
+  { full: '16-19', quick: ['16-17', '18-19'] },
+  { full: '19-22', quick: ['19-20', '21-22'] }
+];
 
 const Booking = () => {
   const [bookings, setBookings] = useState({});
   const [currentUser, setCurrentUser] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const navigate = useNavigate();
+
+  const getUserBookings = (date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    return Object.entries(bookings)
+      .filter(([key, value]) => key.startsWith(dateKey) && value === currentUser)
+      .map(([key]) => key.split('-').slice(3).join('-'));
+  };
+
+  const canBookSlot = (slot) => {
+    const userBookings = getUserBookings(selectedDate);
+    const isQuickRinse = slot.length === 3; // e.g., "7-8"
+    const hasFullBooking = userBookings.some(booking => booking.length === 5); // e.g., "7-10"
+    const hasQuickRinse = userBookings.some(booking => booking.length === 3);
+
+    if (isQuickRinse) {
+      return !hasQuickRinse;
+    } else {
+      return !hasFullBooking;
+    }
+  };
 
   useEffect(() => {
     const user = localStorage.getItem('currentUser');
@@ -25,20 +51,25 @@ const Booking = () => {
   }, [navigate]);
 
   const handleBooking = (slot) => {
+    if (!canBookSlot(slot)) return;
+
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
     const slotKey = `${dateKey}-${slot}`;
     const updatedBookings = { ...bookings };
-    
-    // Remove existing booking for the current user on the selected date
+  
+    // Remove existing booking of the same type (full or quick) for the current user on the selected date
     Object.keys(updatedBookings).forEach(key => {
       if (key.startsWith(dateKey) && updatedBookings[key] === currentUser) {
-        delete updatedBookings[key];
+        const existingSlot = key.split('-').slice(3).join('-');
+        if ((existingSlot.length === 5 && slot.length === 5) || (existingSlot.length === 3 && slot.length === 3)) {
+          delete updatedBookings[key];
+        }
       }
     });
 
     // Add new booking
     updatedBookings[slotKey] = currentUser;
-    
+  
     setBookings(updatedBookings);
     localStorage.setItem('bookings', JSON.stringify(updatedBookings));
   };
@@ -53,6 +84,13 @@ const Booking = () => {
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
     const slotKey = `${dateKey}-${slot}`;
     return bookings[slotKey] === currentUser;
+  };
+
+  const getSlotStatus = (slot) => {
+    if (isUserBooking(slot)) return "Your Booking";
+    if (isSlotBooked(slot)) return "Booked";
+    if (!canBookSlot(slot)) return "Not Available";
+    return "Available";
   };
 
   const handleLogout = () => {
@@ -86,18 +124,36 @@ const Booking = () => {
                 Bookings for {format(selectedDate, 'MMMM d, yyyy')}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {timeSlots.map((slot) => (
-                  <Button
-                    key={slot}
-                    onClick={() => handleBooking(slot)}
-                    disabled={isSlotBooked(slot) && !isUserBooking(slot)}
-                    variant={isSlotBooked(slot) ? (isUserBooking(slot) ? "default" : "secondary") : "outline"}
-                    className={`h-20 ${isUserBooking(slot) ? 'bg-green-500 hover:bg-green-600' : ''}`}
-                  >
-                    {slot}
-                    <br />
-                    {isSlotBooked(slot) ? (isUserBooking(slot) ? "Your Booking" : "Booked") : "Available"}
-                  </Button>
+                {timeSlots.map((slotGroup) => (
+                  <div key={slotGroup.full} className="space-y-2">
+                    <Button
+                      onClick={() => handleBooking(slotGroup.full)}
+                      disabled={!canBookSlot(slotGroup.full) || (isSlotBooked(slotGroup.full) && !isUserBooking(slotGroup.full))}
+                      variant={isSlotBooked(slotGroup.full) ? (isUserBooking(slotGroup.full) ? "default" : "secondary") : "outline"}
+                      className={`w-full h-20 ${isUserBooking(slotGroup.full) ? 'bg-green-500 hover:bg-green-600' : ''}`}
+                    >
+                      {slotGroup.full}
+                      <br />
+                      {getSlotStatus(slotGroup.full)}
+                    </Button>
+                    <div className="flex gap-2">
+                      {slotGroup.quick.map((quickSlot) => (
+                        <Button
+                          key={quickSlot}
+                          onClick={() => handleBooking(quickSlot)}
+                          disabled={!canBookSlot(quickSlot) || (isSlotBooked(quickSlot) && !isUserBooking(quickSlot))}
+                          variant={isSlotBooked(quickSlot) ? (isUserBooking(quickSlot) ? "default" : "secondary") : "outline"}
+                          className={`flex-1 h-16 ${isUserBooking(quickSlot) ? 'bg-blue-500 hover:bg-blue-600' : ''}`}
+                        >
+                          {quickSlot}
+                          <br />
+                          Quick Rinse
+                          <br />
+                          {getSlotStatus(quickSlot)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
