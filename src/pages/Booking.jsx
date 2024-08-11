@@ -87,7 +87,7 @@ const Booking = () => {
   };
 
   const isSlotAvailable = (slot) => {
-    return !isSlotBooked(slot) || isUserBooking(slot);
+    return !isSlotBooked(slot);
   };
 
   const isSlotPast = (slot) => {
@@ -166,7 +166,7 @@ const Booking = () => {
                   const isBooked = isSlotBooked(slot);
                   const isUserSlot = isUserBooking(slot);
                   const isAvailable = isSlotAvailable(slot);
-                  const canBook = !isPast && isAvailable && (!hasUserBooking() || isUserSlot);
+                  const canBook = !isPast && isAvailable && !hasUserBooking();
 
                   return (
                     <Button
@@ -178,7 +178,7 @@ const Booking = () => {
                     >
                       {slot}
                       <br />
-                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isAvailable ? "Available" : "Unavailable")}
+                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Booked" : (isAvailable ? "Available" : "Unavailable"))}
                     </Button>
                   );
                 })}
