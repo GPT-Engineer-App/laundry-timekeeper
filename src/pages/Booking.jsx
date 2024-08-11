@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { addDays, format, isSameDay } from 'date-fns';
+import { addDays, format, isSameDay, parseISO } from 'date-fns';
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const timeSlots = [
   { full: '7-10', quick: ['7-8', '8-9', '9-10'] },
@@ -25,8 +26,12 @@ const Booking = () => {
 
   const getUserBookings = () => {
     return Object.entries(bookings)
-      .filter(([key, value]) => value === currentUser && key.startsWith(`${format(selectedDate, 'yyyy-MM-dd')}-`))
-      .map(([key]) => key.split('-').slice(2).join('-'));
+      .filter(([key, value]) => value === currentUser)
+      .map(([key]) => {
+        const [date, time] = key.split('-');
+        return { date: parseISO(date), time };
+      })
+      .sort((a, b) => a.date - b.date);
   };
 
   const canBookSlot = (slot) => {
@@ -51,8 +56,9 @@ const Booking = () => {
     }
   }, [navigate]);
 
-  const handleBooking = (slot) => {
-    if (isUserBooking(`${format(selectedDate, 'yyyy-MM-dd')}-${slot}`)) {
+  const handleBooking = (slot, date = selectedDate) => {
+    const bookingKey = `${format(date, 'yyyy-MM-dd')}-${slot}`;
+    if (isUserBooking(bookingKey)) {
       setDialogAction('unbook');
     } else if (canBookSlot(slot)) {
       setDialogAction('book');
@@ -60,6 +66,7 @@ const Booking = () => {
       return;
     }
     setSelectedSlot(slot);
+    setSelectedDate(date);
     setIsDialogOpen(true);
   };
 
@@ -146,31 +153,69 @@ const Booking = () => {
     }
   }
 
+  const UserBookings = () => {
+    const userBookings = getUserBookings();
+    return (
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Your Bookings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[300px]">
+            {userBookings.length > 0 ? (
+              userBookings.map(({ date, time }, index) => (
+                <div key={index} className="flex justify-between items-center mb-2">
+                  <span>{format(date, 'MMM d, yyyy')} - {time}</span>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => handleBooking(time, date)}
+                  >
+                    Unbook
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <p>No current bookings</p>
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="min-h-screen p-8 bg-gray-100">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Laundry Booking</h1>
         <Button onClick={handleLogout}>Logout</Button>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Book a Laundry Slot</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              disabled={(date) => date < new Date() || date > addDays(new Date(), 21)}
-              className="rounded-md border"
-            />
-          </div>
-          <div className="space-y-4">
-            {timeSlots.map(renderTimeSlot)}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Book a Laundry Slot</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  disabled={(date) => date < new Date() || date > addDays(new Date(), 21)}
+                  className="rounded-md border"
+                />
+              </div>
+              <div className="space-y-4">
+                {timeSlots.map(renderTimeSlot)}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div>
+          <UserBookings />
+        </div>
+      </div>
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
