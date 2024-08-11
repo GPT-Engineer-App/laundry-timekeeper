@@ -11,7 +11,7 @@ const Booking = () => {
   const [bookings, setBookings] = useState({});
   const [currentUser, setCurrentUser] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [upcomingBookings, setUpcomingBookings] = useState([]);
+  const [upcomingBooking, setUpcomingBooking] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,24 +22,31 @@ const Booking = () => {
       setCurrentUser(user);
       const storedBookings = JSON.parse(localStorage.getItem('bookings')) || {};
       setBookings(storedBookings);
-      updateUpcomingBookings(storedBookings, user);
+      updateUpcomingBooking(storedBookings, user);
     }
   }, [navigate]);
 
-  const updateUpcomingBookings = (bookings, user) => {
+  const updateUpcomingBooking = (bookings, user) => {
     const now = new Date();
-    const userBookings = Object.entries(bookings)
-      .filter(([key, value]) => value === user)
-      .map(([key]) => {
-        const [dateStr, timeSlot] = key.split('-');
-        const [startHour] = timeSlot.split('-');
-        const bookingDate = parseISO(dateStr);
-        bookingDate.setHours(parseInt(startHour, 10), 0, 0, 0);
-        return { date: bookingDate, timeSlot };
-      })
-      .filter(booking => isAfter(booking.date, now))
-      .sort((a, b) => a.date - b.date);
-    setUpcomingBookings(userBookings.slice(0, 3)); // Show only the next 3 upcoming bookings
+    const userBooking = Object.entries(bookings)
+      .find(([key, value]) => {
+        if (value === user) {
+          const [dateStr, timeSlot] = key.split('-');
+          const [startHour] = timeSlot.split('-');
+          const bookingDate = parseISO(dateStr);
+          bookingDate.setHours(parseInt(startHour, 10), 0, 0, 0);
+          return isAfter(bookingDate, now);
+        }
+        return false;
+      });
+
+    if (userBooking) {
+      const [key] = userBooking;
+      const [dateStr, timeSlot] = key.split('-');
+      setUpcomingBooking({ date: parseISO(dateStr), timeSlot });
+    } else {
+      setUpcomingBooking(null);
+    }
   };
 
   const handleBooking = (slot) => {
@@ -48,20 +55,17 @@ const Booking = () => {
     const updatedBookings = { ...bookings };
     
     // Remove any existing upcoming booking for this user
-    Object.keys(updatedBookings).forEach(key => {
-      const [bookingDateStr] = key.split('-');
-      const bookingDate = parseISO(bookingDateStr);
-      if (updatedBookings[key] === currentUser && isAfter(bookingDate, new Date())) {
-        delete updatedBookings[key];
-      }
-    });
+    if (upcomingBooking) {
+      const existingKey = `${format(upcomingBooking.date, 'yyyy-MM-dd')}-${upcomingBooking.timeSlot}`;
+      delete updatedBookings[existingKey];
+    }
 
     // Add new booking
     updatedBookings[slotKey] = currentUser;
     
     setBookings(updatedBookings);
     localStorage.setItem('bookings', JSON.stringify(updatedBookings));
-    updateUpcomingBookings(updatedBookings, currentUser);
+    updateUpcomingBooking(updatedBookings, currentUser);
   };
 
   const isSlotBooked = (slot) => {
@@ -127,17 +131,13 @@ const Booking = () => {
         </CardHeader>
         <CardContent>
           <h2 className="text-xl font-semibold mb-4">Welcome, {currentUser}!</h2>
-          {upcomingBookings.length > 0 && (
+          {upcomingBooking && (
             <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-2">Your Upcoming Bookings:</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {upcomingBookings.map((booking, index) => (
-                  <Card key={index} className="p-4">
-                    <p className="font-medium">{format(booking.date, 'MMMM d, yyyy')}</p>
-                    <p>{booking.timeSlot}</p>
-                  </Card>
-                ))}
-              </div>
+              <h3 className="text-lg font-semibold mb-2">Your Upcoming Booking:</h3>
+              <Card className="p-4">
+                <p className="font-medium">{format(upcomingBooking.date, 'MMMM d, yyyy')}</p>
+                <p>{upcomingBooking.timeSlot}</p>
+              </Card>
             </div>
           )}
           <div className="flex flex-col md:flex-row gap-8">
@@ -160,19 +160,19 @@ const Booking = () => {
                   const isBooked = isSlotBooked(slot);
                   const isUserSlot = isUserBooking(slot);
                   const isAvailable = isSlotAvailable(slot);
-                  const canBook = !isPast && isAvailable && (!hasUserBooking() || isUserSlot);
+                  const canBook = !isPast && isAvailable && (!upcomingBooking || isUserSlot);
 
                   return (
                     <Button
                       key={slot}
                       onClick={() => canBook && handleBooking(slot)}
                       disabled={!canBook}
-                      variant={isUserSlot ? "default" : (isAvailable && !hasUserBooking() ? "outline" : "secondary")}
+                      variant={isUserSlot ? "default" : (isAvailable && !upcomingBooking ? "outline" : "secondary")}
                       className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
                     >
                       {slot}
                       <br />
-                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Booked" : (isAvailable && !hasUserBooking() ? "Available" : "Unavailable"))}
+                      {isPast ? "Past" : isUserSlot ? "Your Booking" : (isBooked ? "Booked" : (isAvailable && !upcomingBooking ? "Available" : "Unavailable"))}
                     </Button>
                   );
                 })}
