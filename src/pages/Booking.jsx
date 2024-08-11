@@ -9,7 +9,7 @@ import { addDays, format, parseISO, isToday, isBefore, startOfDay, isAfter, isVa
 const timeSlots = ['7-8', '8-10', '10-11', '11-13', '13-14', '14-16', '16-17', '17-19', '19-20', '20-22'];
 
 const Booking = () => {
-  const [upcomingBooking, setUpcomingBooking] = useState(null);
+  const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [quickRinse, setQuickRinse] = useState(null);
   const [currentUser, setCurrentUser] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -22,14 +22,10 @@ const Booking = () => {
     } else {
       setCurrentUser(user);
       const allBookings = JSON.parse(localStorage.getItem('allBookings')) || [];
-      const userBooking = allBookings.find(booking => booking.user === user && !booking.isQuickRinse);
+      const userBookings = allBookings.filter(booking => booking.user === user && !booking.isQuickRinse);
       const userQuickRinse = allBookings.find(booking => booking.user === user && booking.isQuickRinse);
-      if (userBooking) {
-        setUpcomingBooking(userBooking);
-      }
-      if (userQuickRinse) {
-        setQuickRinse(userQuickRinse);
-      }
+      setUpcomingBookings(userBookings);
+      setQuickRinse(userQuickRinse);
     }
   }, [navigate]);
 
@@ -40,61 +36,53 @@ const Booking = () => {
   };
 
   const handleBooking = (slot, isQuickRinse = false) => {
-    if (!isQuickRinse && upcomingBooking && upcomingBooking.timeSlot === slot && isSameDay(parseISO(upcomingBooking.date), selectedDate)) {
-      // If clicking on the current booking, do nothing (cancellation is handled separately)
-      return;
-    }
-
     const [startHour, endHour] = slot.split('-');
     const bookingDate = new Date(selectedDate);
     bookingDate.setHours(parseInt(startHour, 10), 0, 0, 0);
 
-    let newBookings = [];
-    if (isQuickRinse) {
-      newBookings.push({
-        user: currentUser,
-        date: bookingDate.toISOString(),
-        timeSlot: `${startHour}-${parseInt(startHour) + 1}`,
-        isQuickRinse: true
-      });
-    } else {
-      newBookings.push({
-        user: currentUser,
-        date: bookingDate.toISOString(),
-        timeSlot: slot,
-        isQuickRinse: false
-      });
-    }
+    const newBooking = {
+      user: currentUser,
+      date: bookingDate.toISOString(),
+      timeSlot: isQuickRinse ? `${startHour}-${parseInt(startHour) + 1}` : slot,
+      isQuickRinse: isQuickRinse
+    };
 
     // Get all bookings
     let allBookings = JSON.parse(localStorage.getItem('allBookings')) || [];
     
-    // Remove any existing bookings for the current user
-    allBookings = allBookings.filter(booking => booking.user !== currentUser);
-    
-    // Add the new booking(s)
-    allBookings = [...allBookings, ...newBookings];
+    if (isQuickRinse) {
+      // Remove any existing quick rinse for the current user
+      allBookings = allBookings.filter(booking => !(booking.user === currentUser && booking.isQuickRinse));
+      allBookings.push(newBooking);
+      setQuickRinse(newBooking);
+    } else {
+      // Add the new regular booking
+      allBookings.push(newBooking);
+      setUpcomingBookings(prevBookings => [...prevBookings, newBooking]);
+    }
     
     // Update all bookings in localStorage
     localStorage.setItem('allBookings', JSON.stringify(allBookings));
-
-    if (isQuickRinse) {
-      setQuickRinse(newBookings[0]);
-    } else {
-      setUpcomingBooking(newBookings[0]);
-    }
   };
 
-  const cancelBooking = (isQuickRinse = false) => {
+  const cancelBooking = (bookingToCancel) => {
     // Remove the booking from allBookings
     let allBookings = JSON.parse(localStorage.getItem('allBookings')) || [];
-    allBookings = allBookings.filter(booking => !(booking.user === currentUser && booking.isQuickRinse === isQuickRinse));
+    allBookings = allBookings.filter(booking => 
+      !(booking.user === currentUser && 
+        booking.date === bookingToCancel.date && 
+        booking.timeSlot === bookingToCancel.timeSlot)
+    );
     localStorage.setItem('allBookings', JSON.stringify(allBookings));
 
-    if (isQuickRinse) {
+    if (bookingToCancel.isQuickRinse) {
       setQuickRinse(null);
     } else {
-      setUpcomingBooking(null);
+      setUpcomingBookings(prevBookings => 
+        prevBookings.filter(booking => 
+          !(booking.date === bookingToCancel.date && booking.timeSlot === bookingToCancel.timeSlot)
+        )
+      );
     }
   };
 
@@ -152,10 +140,32 @@ const Booking = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      {upcomingBooking && (
+      {upcomingBookings.length > 0 && (
         <div className="max-w-4xl mx-auto mb-8 bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-semibold mb-2">Your Upcoming Booking:</h3>
-          <p className="text-lg font-medium">{format(upcomingBooking.date, 'MMMM d, yyyy')} - {upcomingBooking.timeSlot}</p>
+          <h3 className="text-xl font-semibold mb-2">Your Upcoming Bookings:</h3>
+          {upcomingBookings.map((booking, index) => (
+            <div key={index} className="flex justify-between items-center mb-2">
+              <p className="text-lg font-medium">
+                {format(parseISO(booking.date), 'MMMM d, yyyy')} - {booking.timeSlot}
+              </p>
+              <Button onClick={() => cancelBooking(booking)} variant="outline" size="sm">
+                Cancel
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+      {quickRinse && (
+        <div className="max-w-4xl mx-auto mb-8 bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-xl font-semibold mb-2">Your Quick Rinse:</h3>
+          <div className="flex justify-between items-center">
+            <p className="text-lg font-medium">
+              {format(parseISO(quickRinse.date), 'MMMM d, yyyy')} - {quickRinse.timeSlot}
+            </p>
+            <Button onClick={() => cancelBooking(quickRinse)} variant="outline" size="sm">
+              Cancel
+            </Button>
+          </div>
         </div>
       )}
       <Card className="max-w-4xl mx-auto">
