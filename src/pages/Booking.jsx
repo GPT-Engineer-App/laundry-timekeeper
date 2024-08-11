@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
-import { addDays, format } from 'date-fns';
+import { addDays, format, parseISO } from 'date-fns';
 
 const timeSlots = ['7-10', '10-13', '13-16', '16-19', '19-22'];
 
@@ -20,7 +20,14 @@ const Booking = () => {
     } else {
       setCurrentUser(user);
       const storedBookings = JSON.parse(localStorage.getItem('bookings')) || {};
-      setBookings(storedBookings);
+      // Convert stored date strings back to Date objects
+      const parsedBookings = Object.entries(storedBookings).reduce((acc, [key, value]) => {
+        const [dateStr, timeSlot] = key.split('-');
+        const date = parseISO(dateStr);
+        acc[`${format(date, 'yyyy-MM-dd')}-${timeSlot}`] = value;
+        return acc;
+      }, {});
+      setBookings(parsedBookings);
     }
   }, [navigate]);
 
@@ -55,6 +62,14 @@ const Booking = () => {
     return bookings[slotKey] === currentUser;
   };
 
+  const formatDate = (date) => {
+    if (!(date instanceof Date) || isNaN(date)) {
+      console.error('Invalid date:', date);
+      return 'Invalid Date';
+    }
+    return format(date, 'MMMM d, yyyy');
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
     navigate('/');
@@ -83,7 +98,7 @@ const Booking = () => {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold mb-2">
-                Bookings for {format(selectedDate, 'MMMM d, yyyy')}
+                Bookings for {formatDate(selectedDate)}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {timeSlots.map((slot) => (
