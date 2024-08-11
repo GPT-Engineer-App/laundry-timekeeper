@@ -6,7 +6,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { addDays, format, parseISO, isToday, isBefore, startOfDay, isAfter, isValid, isSameDay, addHours } from 'date-fns';
 
-const timeSlots = ['7-10', '10-13', '13-16', '16-19', '19-22'];
+const timeSlots = ['7-8', '8-10', '10-11', '11-13', '13-14', '14-16', '16-17', '17-19', '19-20', '20-22'];
 
 const Booking = () => {
   const [upcomingBooking, setUpcomingBooking] = useState(null);
@@ -45,35 +45,44 @@ const Booking = () => {
       return;
     }
 
-    const [startHour] = slot.split('-');
+    const [startHour, endHour] = slot.split('-');
     const bookingDate = new Date(selectedDate);
     bookingDate.setHours(parseInt(startHour, 10), 0, 0, 0);
 
-    const newBooking = {
-      user: currentUser,
-      date: bookingDate.toISOString(),
-      timeSlot: isQuickRinse ? `${startHour}-${parseInt(startHour) + 1}` : slot,
-      isQuickRinse
-    };
+    let newBookings = [];
+    if (isQuickRinse) {
+      newBookings.push({
+        user: currentUser,
+        date: bookingDate.toISOString(),
+        timeSlot: `${startHour}-${parseInt(startHour) + 1}`,
+        isQuickRinse: true
+      });
+    } else {
+      newBookings.push({
+        user: currentUser,
+        date: bookingDate.toISOString(),
+        timeSlot: slot,
+        isQuickRinse: false
+      });
+    }
 
     // Get all bookings
     let allBookings = JSON.parse(localStorage.getItem('allBookings')) || [];
     
-    if (isQuickRinse) {
-      // Remove any existing quick rinse for the current user
-      allBookings = allBookings.filter(booking => !(booking.user === currentUser && booking.isQuickRinse));
-      setQuickRinse(newBooking);
-    } else {
-      // Remove any existing regular booking for the current user
-      allBookings = allBookings.filter(booking => !(booking.user === currentUser && !booking.isQuickRinse));
-      setUpcomingBooking(newBooking);
-    }
+    // Remove any existing bookings for the current user
+    allBookings = allBookings.filter(booking => booking.user !== currentUser);
     
-    // Add the new booking
-    allBookings.push(newBooking);
+    // Add the new booking(s)
+    allBookings = [...allBookings, ...newBookings];
     
     // Update all bookings in localStorage
     localStorage.setItem('allBookings', JSON.stringify(allBookings));
+
+    if (isQuickRinse) {
+      setQuickRinse(newBookings[0]);
+    } else {
+      setUpcomingBooking(newBookings[0]);
+    }
   };
 
   const cancelBooking = (isQuickRinse = false) => {
@@ -94,9 +103,9 @@ const Booking = () => {
     const [startHour, endHour] = slot.split('-');
     return bookings.some(booking => {
       const bookingDate = new Date(booking.date);
+      const [bookingStartHour, bookingEndHour] = booking.timeSlot.split('-');
       return format(bookingDate, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd') &&
-        ((!booking.isQuickRinse && booking.timeSlot === slot) ||
-         (booking.isQuickRinse && bookingDate.getHours() >= parseInt(startHour) && bookingDate.getHours() < parseInt(endHour)));
+        (parseInt(bookingStartHour) < parseInt(endHour) && parseInt(bookingEndHour) > parseInt(startHour));
     });
   };
 
@@ -179,6 +188,8 @@ const Booking = () => {
                   const isUserSlot = isUserBooking(slot);
                   const isAvailable = isSlotAvailable(slot);
                   const canBook = !isPast && (isAvailable || isUserSlot);
+                  const [startHour, endHour] = slot.split('-');
+                  const isQuickRinseSlot = parseInt(endHour) - parseInt(startHour) === 1;
 
                   return (
                     <AlertDialog key={slot}>
@@ -192,6 +203,8 @@ const Booking = () => {
                               {slot}
                               <br />
                               Your Booking
+                              {isQuickRinseSlot && <br />}
+                              {isQuickRinseSlot && "(Quick Rinse)"}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -203,7 +216,7 @@ const Booking = () => {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>No</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => cancelBooking(false)}>Yes, Cancel Booking</AlertDialogAction>
+                              <AlertDialogAction onClick={() => cancelBooking(isQuickRinseSlot)}>Yes, Cancel Booking</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </>
@@ -229,7 +242,9 @@ const Booking = () => {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleBooking(slot, false)}>Full Booking</AlertDialogAction>
+                              {!isQuickRinseSlot && (
+                                <AlertDialogAction onClick={() => handleBooking(slot, false)}>Full Booking</AlertDialogAction>
+                              )}
                               <AlertDialogAction onClick={() => handleBooking(slot, true)}>Quick Rinse</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
