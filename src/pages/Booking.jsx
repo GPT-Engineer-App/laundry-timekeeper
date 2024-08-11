@@ -7,11 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { addDays, format } from 'date-fns';
 
 const timeSlots = [
-  { full: '7-10', quick: ['7-8', '9-10'] },
-  { full: '10-13', quick: ['10-11', '12-13'] },
-  { full: '13-16', quick: ['13-14', '15-16'] },
-  { full: '16-19', quick: ['16-17', '18-19'] },
-  { full: '19-22', quick: ['19-20', '21-22'] }
+  { full: '7-10', quick: ['7-8', '8-9', '9-10'] },
+  { full: '10-13', quick: ['10-11', '11-12', '12-13'] },
+  { full: '13-16', quick: ['13-14', '14-15', '15-16'] },
+  { full: '16-19', quick: ['16-17', '17-18', '18-19'] },
+  { full: '19-22', quick: ['19-20', '20-21', '21-22'] }
 ];
 
 const Booking = () => {
@@ -22,23 +22,22 @@ const Booking = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const navigate = useNavigate();
 
-  const getUserBookings = (date) => {
-    const dateKey = format(date, 'yyyy-MM-dd');
+  const getUserBookings = () => {
     return Object.entries(bookings)
-      .filter(([key, value]) => key.startsWith(dateKey) && value === currentUser)
-      .map(([key]) => key.split('-').slice(3).join('-'));
+      .filter(([, value]) => value === currentUser)
+      .map(([key]) => key.split('-').slice(1).join('-'));
   };
 
   const canBookSlot = (slot) => {
-    const userBookings = getUserBookings(selectedDate);
-    const isQuickRinse = slot.length === 3; // e.g., "7-8"
+    const userBookings = getUserBookings();
+    const isQuickRinse = slot.length === 5; // e.g., "7-8"
     const hasFullBooking = userBookings.some(booking => booking.length === 5); // e.g., "7-10"
-    const hasQuickRinse = userBookings.some(booking => booking.length === 3);
+    const hasQuickRinse = userBookings.some(booking => booking.length === 5);
 
     if (isQuickRinse) {
-      return !hasQuickRinse && !hasFullBooking;
+      return !hasQuickRinse;
     } else {
-      return !hasFullBooking;
+      return !hasFullBooking && !hasQuickRinse;
     }
   };
 
@@ -48,55 +47,39 @@ const Booking = () => {
       navigate('/');
     } else {
       setCurrentUser(user);
-      const storedBookings = JSON.parse(localStorage.getItem('bookings')) || {};
-      setBookings(storedBookings);
+      setBookings({}); // Reset all bookings
     }
   }, [navigate]);
 
   const handleBooking = (slot) => {
     if (!canBookSlot(slot)) return;
-
-    if (slot.length === 5) { // Full-length slot
-      setSelectedSlot(slot);
-      setIsDialogOpen(true);
-    } else { // Quick rinse slot
-      bookSlot(slot);
-    }
+    setSelectedSlot(slot);
+    setIsDialogOpen(true);
   };
 
   const bookSlot = (slot) => {
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    const slotKey = `${dateKey}-${slot}`;
     const updatedBookings = { ...bookings };
-  
-    // Remove existing booking of the same type (full or quick) for the current user on the selected date
+    
+    // Remove existing bookings for the current user
     Object.keys(updatedBookings).forEach(key => {
-      if (key.startsWith(dateKey) && updatedBookings[key] === currentUser) {
-        const existingSlot = key.split('-').slice(3).join('-');
-        if ((existingSlot.length === 5 && slot.length === 5) || (existingSlot.length === 3 && slot.length === 3)) {
-          delete updatedBookings[key];
-        }
+      if (updatedBookings[key] === currentUser) {
+        delete updatedBookings[key];
       }
     });
 
     // Add new booking
-    updatedBookings[slotKey] = currentUser;
+    updatedBookings[`booking-${slot}`] = currentUser;
   
     setBookings(updatedBookings);
-    localStorage.setItem('bookings', JSON.stringify(updatedBookings));
     setIsDialogOpen(false);
   };
 
   const isSlotBooked = (slot) => {
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    const slotKey = `${dateKey}-${slot}`;
-    return bookings[slotKey] !== undefined;
+    return bookings[`booking-${slot}`] !== undefined;
   };
 
   const isUserBooking = (slot) => {
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    const slotKey = `${dateKey}-${slot}`;
-    return bookings[slotKey] === currentUser;
+    return bookings[`booking-${slot}`] === currentUser;
   };
 
   const getSlotStatus = (slot) => {
@@ -111,43 +94,40 @@ const Booking = () => {
     navigate('/');
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <Card className="max-w-4xl mx-auto">
-        <CardHeader>
-          <CardTitle className="flex justify-between items-center">
-            <span>Laundry Room Booking</span>
-            <Button onClick={handleLogout} variant="outline">Logout</Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <h2 className="text-xl font-semibold mb-4">Welcome, {currentUser}!</h2>
-          <div className="flex flex-col md:flex-row gap-8">
-            <div className="flex-1">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-md border"
-                disabled={(date) => date < new Date() || date > addDays(new Date(), 21)}
-              />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold mb-2">
-                Bookings for {format(selectedDate, 'MMMM d, yyyy')}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {timeSlots.map((slotGroup) => (
-                  <div key={slotGroup.full} className="space-y-2">
-                    <Button
-                      onClick={() => handleBooking(slotGroup.full)}
-                      disabled={!canBookSlot(slotGroup.full) || (isSlotBooked(slotGroup.full) && !isUserBooking(slotGroup.full))}
-                      variant={isSlotBooked(slotGroup.full) ? (isUserBooking(slotGroup.full) ? "default" : "secondary") : "outline"}
-                      className={`w-full h-20 ${isUserBooking(slotGroup.full) ? 'bg-green-500 hover:bg-green-600' : ''}`}
+  const renderTimeSlot = (slot) => {
+    const isFullSlot = slot.length === 5;
+    const quickRinseBooked = isFullSlot && slot.quick.some(q => isSlotBooked(q));
+    
+    if (quickRinseBooked) {
+      return (
+        <div key={slot.full} className="space-y-2">
+          {slot.quick.map(quickSlot => (
+            <Button
+              key={quickSlot}
+              onClick={() => handleBooking(quickSlot)}
+              disabled={!canBookSlot(quickSlot) || (isSlotBooked(quickSlot) && !isUserBooking(quickSlot))}
+              variant={isSlotBooked(quickSlot) ? (isUserBooking(quickSlot) ? "default" : "secondary") : "outline"}
+              className={`w-full h-12 ${isUserBooking(quickSlot) ? 'bg-green-500 hover:bg-green-600' : ''}`}
+            >
+              {quickSlot}
+              <br />
+              {getSlotStatus(quickSlot)}
+            </Button>
+          ))}
+        </div>
+      );
+    } else {
+      return (
+        <div key={slot.full} className="space-y-2">
+          <Button
+            onClick={() => handleBooking(slot.full)}
+            disabled={!canBookSlot(slot.full) || (isSlotBooked(slot.full) && !isUserBooking(slot.full))}
+            variant={isSlotBooked(slot.full) ? (isUserBooking(slot.full) ? "default" : "secondary") : "outline"}
+            className={`w-full h-20 ${isUserBooking(slot.full) ? 'bg-green-500 hover:bg-green-600' : ''}`}
                     >
-                      {slotGroup.full}
+                      {slot.full}
                       <br />
-                      {getSlotStatus(slotGroup.full)}
+                      {getSlotStatus(slot.full)}
                     </Button>
                   </div>
                 ))}
@@ -159,23 +139,13 @@ const Booking = () => {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Choose Booking Type</DialogTitle>
+            <DialogTitle>Confirm Booking</DialogTitle>
             <DialogDescription>
-              Do you want to book the entire time slot or just a quick rinse?
+              Are you sure you want to book this time slot?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => bookSlot(selectedSlot)}>Full Slot ({selectedSlot})</Button>
-            {selectedSlot && (
-              <>
-                <Button onClick={() => bookSlot(selectedSlot.split('-')[0])}>
-                  Quick Rinse ({selectedSlot.split('-')[0]})
-                </Button>
-                <Button onClick={() => bookSlot(selectedSlot.split('-')[1])}>
-                  Quick Rinse ({selectedSlot.split('-')[1]})
-                </Button>
-              </>
-            )}
+            <Button onClick={() => bookSlot(selectedSlot)}>Confirm Booking</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
