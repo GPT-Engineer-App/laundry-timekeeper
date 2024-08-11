@@ -34,9 +34,16 @@ const Booking = () => {
     };
     setUpcomingBooking(newBooking);
     
-    // Update all bookings
-    const allBookings = JSON.parse(localStorage.getItem('allBookings')) || [];
+    // Get all bookings
+    let allBookings = JSON.parse(localStorage.getItem('allBookings')) || [];
+    
+    // Remove any existing bookings for the current user
+    allBookings = allBookings.filter(booking => booking.user !== currentUser);
+    
+    // Add the new booking
     allBookings.push(newBooking);
+    
+    // Update all bookings in localStorage
     localStorage.setItem('allBookings', JSON.stringify(allBookings));
     
     // Update user's upcoming booking
@@ -61,7 +68,12 @@ const Booking = () => {
   };
 
   const isSlotAvailable = (slot) => {
-    return !isSlotBooked(slot);
+    const bookings = JSON.parse(localStorage.getItem('allBookings')) || [];
+    return !bookings.some(booking => 
+      format(parseISO(booking.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd') &&
+      booking.timeSlot === slot &&
+      booking.user !== currentUser
+    );
   };
 
   const isSlotPast = (slot) => {
