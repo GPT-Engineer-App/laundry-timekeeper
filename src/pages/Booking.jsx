@@ -163,7 +163,13 @@ const Booking = () => {
                     <AlertDialog key={slot}>
                       <AlertDialogTrigger asChild>
                         <Button
-                          onClick={() => !isUserSlot && handleBooking(slot)}
+                          onClick={() => {
+                            if (isUserSlot) {
+                              // Do nothing, let the AlertDialog handle it
+                            } else if (!isBooked) {
+                              handleBooking(slot);
+                            }
+                          }}
                           disabled={!canBook || (isBooked && !isUserSlot)}
                           variant={isUserSlot ? "default" : "outline"}
                           className={`h-20 ${isUserSlot ? 'bg-green-500 hover:bg-green-600' : ''} ${isPast ? 'opacity-50' : ''}`}
