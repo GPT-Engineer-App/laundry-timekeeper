@@ -22,6 +22,7 @@ const Booking = () => {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogAction, setDialogAction] = useState('book'); // 'book' or 'unbook'
+  const [userBookings, setUserBookings] = useState([]);
   const navigate = useNavigate();
 
   const getUserBookings = () => {
@@ -34,6 +35,10 @@ const Booking = () => {
       })
       .sort((a, b) => a.date - b.date);
   };
+
+  useEffect(() => {
+    setUserBookings(getUserBookings());
+  }, [bookings, currentUser]);
 
   const canBookSlot = (slot, date) => {
     const userBookings = getUserBookings();
@@ -103,8 +108,8 @@ const Booking = () => {
     setBookings(updatedBookings);
     setIsDialogOpen(false);
     
-    // Force a re-render of UserBookings
-    setCurrentUser(prevUser => prevUser);
+    // Update user bookings
+    setUserBookings(getUserBookings());
   };
 
   const isSlotBooked = (slot) => {
@@ -145,7 +150,7 @@ const Booking = () => {
   }
 
   const UserBookings = () => {
-    const userBookings = getUserBookings().sort((a, b) => b.date - a.date); // Sort bookings in descending order
+    const sortedBookings = [...userBookings].sort((a, b) => b.date - a.date); // Sort bookings in descending order
     return (
       <Card className="mt-4">
         <CardHeader>
@@ -153,8 +158,8 @@ const Booking = () => {
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[300px]">
-            {userBookings.length > 0 ? (
-              userBookings.map(({ date, time }, index) => (
+            {sortedBookings.length > 0 ? (
+              sortedBookings.map(({ date, time }, index) => (
                 <div key={index} className="flex justify-between items-center mb-2">
                   <span>{format(date, 'MMM d, yyyy')} - {time}</span>
                   <Button 
